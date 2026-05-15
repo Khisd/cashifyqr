@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cashify QRIS — Bayar Sekarang</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c27;
+      --border: #2a2a38;
+      --accent: #7c6af7;
+      --accent2: #f7c96a;
+      --accent3: #6af7c9;
+      --text: #e8e8f0;
+      --muted: #6b6b88;
+      --success: #4af7a0;
+      --danger: #f76a6a;
+      --radius: 16px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      overflow-x: hidden;
+    }
+
+    /* Ambient background blobs */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 60% 50% at 10% 20%, rgba(124,106,247,0.12) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 60% at 90% 80%, rgba(106,247,201,0.08) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(247,201,106,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .container {
+      position: relative; z-index: 1;
+      width: 100%; max-width: 460px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      animation: fadeDown 0.6s ease both;
+    }
+    .header .logo-mark {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border);
+      padding: 8px 18px; border-radius: 999px;
+      font-family: 'Syne', sans-serif; font-size: 0.78rem;
+      font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--muted); margin-bottom: 1.2rem;
+    }
+    .header .logo-mark span { color: var(--accent); }
+    .header h1 {
+      font-family: 'Syne', sans-serif;
+      font-size: clamp(1.8rem, 5vw, 2.4rem);
+      font-weight: 800; line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+    .header h1 em { font-style: normal; color: var(--accent); }
+    .header p {
+      color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem;
+      font-weight: 300;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    /* Step label */
+    .step-label {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--muted); margin-bottom: 1rem;
+    }
+    .step-label span {
+      display: inline-block; background: var(--accent); color: #fff;
+      width: 18px; height: 18px; border-radius: 50%;
+      text-align: center; line-height: 18px; font-size: 0.65rem;
+      margin-right: 6px; font-weight: 700;
+    }
+
+    /* Product cards */
+    .products { display: flex; flex-direction: column; gap: 0.75rem; }
+    .product-btn {
+      all: unset; cursor: pointer;
+      display: flex; align-items: center; justify-content: space-between;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: var(--radius); padding: 1rem 1.2rem;
+      transition: all 0.2s ease; position: relative; overflow: hidden;
+    }
+    .product-btn::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--accent) 0%, transparent 100%);
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .product-btn:hover { border-color: var(--accent); transform: translateY(-1px); }
+    .product-btn:hover::before { opacity: 0.06; }
+    .product-btn.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), inset 0 0 20px rgba(124,106,247,0.08);
+    }
+    .product-btn.selected::before { opacity: 0.08; }
+
+    .product-info { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+    .product-emoji {
+      font-size: 1.5rem; width: 44px; height: 44px;
+      background: var(--surface); border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .product-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; }
+    .product-desc { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+    .product-price {
+      font-family: 'Syne', sans-serif; font-weight: 800;
+      font-size: 1rem; color: var(--accent2);
+      position: relative; z-index: 1; flex-shrink: 0;
+    }
+    .product-check {
+      position: absolute; top: 10px; right: 10px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--accent); display: none;
+      align-items: center; justify-content: center; z-index: 2;
+    }
+    .product-btn.selected .product-check { display: flex; }
+    .product-check svg { width: 10px; height: 10px; }
+
+    /* Input fields */
+    .fields { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.25rem; }
+    .field label {
+      display: block; font-size: 0.75rem; font-weight: 500;
+      color: var(--muted); margin-bottom: 6px; letter-spacing: 0.04em;
+    }
+    .field input {
+      width: 100%; background: var(--surface2);
+      border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 10px 14px; color: var(--text); font-size: 0.9rem;
+      font-family: 'DM Sans', sans-serif; outline: none;
+      transition: border-color 0.2s;
+    }
+    .field input:focus { border-color: var(--accent); }
+    .field input::placeholder { color: var(--muted); }
+
+    /* Pay button */
+    .pay-btn {
+      width: 100%; margin-top: 1.25rem;
+      background: linear-gradient(135deg, var(--accent), #9b8af7);
+      border: none; border-radius: 12px; padding: 14px;
+      color: #fff; font-family: 'Syne', sans-serif;
+      font-size: 0.95rem; font-weight: 700; cursor: pointer;
+      letter-spacing: 0.03em; transition: all 0.2s;
+      position: relative; overflow: hidden;
+    }
+    .pay-btn:disabled {
+      opacity: 0.35; cursor: not-allowed;
+      background: var(--surface2);
+    }
+    .pay-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(124,106,247,0.35); }
+    .pay-btn:not(:disabled):active { transform: translateY(0); }
+    .pay-btn .spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 8px;
+    }
+
+    /* ── QR Step ──────────────────────────────────────────── */
+    #step-qr { display: none; }
+    .qr-header { text-align: center; margin-bottom: 1.5rem; }
+    .qr-product-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(124,106,247,0.12); border: 1px solid rgba(124,106,247,0.3);
+      border-radius: 999px; padding: 4px 12px;
+      font-size: 0.78rem; font-weight: 500; color: var(--accent);
+      margin-bottom: 0.75rem;
+    }
+    .qr-amount {
+      font-family: 'Syne', sans-serif; font-size: 2rem;
+      font-weight: 800; color: var(--accent2);
+    }
+    .qr-amount-note {
+      font-size: 0.75rem; color: var(--muted); margin-top: 4px;
+    }
+    .qr-amount-note strong { color: var(--accent3); }
+
+    .qr-canvas-wrap {
+      background: #fff; border-radius: var(--radius);
+      padding: 1.25rem; display: flex; justify-content: center;
+      align-items: center; margin-bottom: 1.25rem;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.05), 0 20px 40px rgba(0,0,0,0.4);
+    }
+    #qr-canvas canvas, #qr-canvas img { display: block; border-radius: 6px; }
+
+    .qr-info { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.25rem; }
+    .qr-info-row {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.82rem; padding: 8px 12px;
+      background: var(--surface2); border-radius: 8px;
+    }
+    .qr-info-row .label { color: var(--muted); }
+    .qr-info-row .val { font-weight: 500; font-family: 'Syne', sans-serif; font-size: 0.8rem; }
+    .qr-info-row .val.mono { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--accent3); }
+
+    /* Status badge */
+    .status-badge {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 10px; border-radius: 10px; font-weight: 600; font-size: 0.88rem;
+      transition: all 0.4s;
+    }
+    .status-badge.pending {
+      background: rgba(247,201,106,0.1); border: 1px solid rgba(247,201,106,0.25);
+      color: var(--accent2);
+    }
+    .status-badge.paid {
+      background: rgba(74,247,160,0.1); border: 1px solid rgba(74,247,160,0.25);
+      color: var(--success);
+    }
+    .status-badge.expired {
+      background: rgba(247,106,106,0.1); border: 1px solid rgba(247,106,106,0.25);
+      color: var(--danger);
+    }
+    .pulse { animation: pulse 2s ease-in-out infinite; }
+
+    /* Timer */
+    .timer-wrap { text-align: center; margin-top: 0.75rem; }
+    .timer-bar-bg {
+      height: 4px; background: var(--surface2);
+      border-radius: 999px; overflow: hidden; margin-top: 8px;
+    }
+    .timer-bar {
+      height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 999px; transition: width 1s linear;
+    }
+    .timer-text { font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+
+    .back-link {
+      display: block; text-align: center; margin-top: 1rem;
+      color: var(--muted); font-size: 0.82rem; cursor: pointer;
+      text-decoration: underline; text-underline-offset: 3px;
+    }
+    .back-link:hover { color: var(--text); }
+
+    /* ── Success Step ─────────────────────────────────────── */
+    #step-success { display: none; text-align: center; padding: 1rem 0; }
+    .success-icon {
+      font-size: 4rem; margin-bottom: 1rem;
+      animation: popIn 0.5s cubic-bezier(0.34,1.56,0.64,1) both;
+    }
+    .success-title {
+      font-family: 'Syne', sans-serif; font-size: 1.5rem;
+      font-weight: 800; color: var(--success); margin-bottom: 0.5rem;
+    }
+    .success-sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.5rem; }
+    .success-detail {
+      background: var(--surface2); border-radius: var(--radius);
+      padding: 1rem 1.25rem; margin-bottom: 1.5rem; text-align: left;
+    }
+    .success-detail-row {
+      display: flex; justify-content: space-between;
+      font-size: 0.83rem; padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .success-detail-row:last-child { border: none; }
+    .success-detail-row .k { color: var(--muted); }
+    .success-detail-row .v { font-weight: 600; }
+    .again-btn {
+      all: unset; cursor: pointer;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 12px 28px;
+      font-family: 'Syne', sans-serif; font-weight: 600;
+      font-size: 0.9rem; transition: all 0.2s;
+    }
+    .again-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* Divider */
+    .divider {
+      height: 1px; background: var(--border);
+      margin: 1.5rem 0;
+    }
+
+    /* Footer trust badge */
+    .trust {
+      display: flex; align-items: center; justify-content: center; gap: 1.5rem;
+      margin-top: 1.5rem; animation: fadeUp 0.8s ease 0.2s both;
+    }
+    .trust-item {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.72rem; color: var(--muted);
+    }
+    .trust-item svg { width: 14px; height: 14px; }
+
+    /* Animations */
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.5); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-mark">⚡ <span>Cashify</span> Payment</div>
+    <h1>Bayar dengan <em>QRIS</em><br>Cepat & Aman</h1>
+    <p>Generate QR dinamis · Scan dari e-wallet apapun</p>
+  </div>
+
+  <!-- Card -->
+  <div class="card">
+
+    <!-- ── STEP 1: Pilih Produk ── -->
+    <div id="step-product">
+      <div class="step-label"><span>1</span> Pilih Paket</div>
+
+      <div class="products">
+        <button class="product-btn" onclick="selectProduct('prod_129','Paket Starter',129000,'🚀','Cocok untuk pemula')" id="btn-prod_129">
+          <div class="product-check">
+            <svg viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="product-info">
+            <div class="product-emoji">🚀</div>
+            <div>
+              <div class="product-name">Paket Starter</div>
+              <div class="product-desc">Cocok untuk pemula</div>
+            </div>
+          </div>
+          <div class="product-price">Rp 129.000</div>
+        </button>
+
+        <button class="product-btn" onclick="selectProduct('prod_200','Paket Pro',200000,'⚡','Profesional')" id="btn-prod_200">
+          <div class="product-check">
+            <svg viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="product-info">
+            <div class="product-emoji">⚡</div>
+            <div>
+              <div class="product-name">Paket Pro</div>
+              <div class="product-desc">Untuk kebutuhan profesional</div>
+            </div>
+          </div>
+          <div class="product-price">Rp 200.000</div>
+        </button>
+
+        <button class="product-btn" onclick="selectProduct('prod_500','Paket Ultimate',500000,'👑','Fitur lengkap')" id="btn-prod_500">
+          <div class="product-check">
+            <svg viewBox="0 0 10 10" fill="none"><path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="product-info">
+            <div class="product-emoji">👑</div>
+            <div>
+              <div class="product-name">Paket Ultimate</div>
+              <div class="product-desc">Fitur lengkap tanpa batas</div>
+            </div>
+          </div>
+          <div class="product-price">Rp 500.000</div>
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="step-label"><span>2</span> Data Pembeli <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:0.72rem;">(opsional)</span></div>
+
+      <div class="fields">
+        <div class="field">
+          <label>NAMA LENGKAP</label>
+          <input id="buyer-name" type="text" placeholder="Contoh: Budi Santoso" />
+        </div>
+        <div class="field">
+          <label>EMAIL</label>
+          <input id="buyer-email" type="email" placeholder="email@contoh.com" />
+        </div>
+      </div>
+
+      <button class="pay-btn" id="pay-btn" disabled onclick="createPayment()">
+        Generate QR Code
+      </button>
+    </div>
+
+    <!-- ── STEP 2: QR Code ── -->
+    <div id="step-qr">
+      <div class="qr-header">
+        <div class="qr-product-tag" id="qr-product-tag"></div>
+        <div class="qr-amount" id="qr-amount"></div>
+        <div class="qr-amount-note" id="qr-amount-note"></div>
+      </div>
+
+      <div class="qr-canvas-wrap">
+        <div id="qr-canvas"></div>
+      </div>
+
+      <div class="qr-info">
+        <div class="qr-info-row">
+          <span class="label">Transaction ID</span>
+          <span class="val mono" id="qr-txid">—</span>
+        </div>
+        <div class="qr-info-row">
+          <span class="label">Berlaku hingga</span>
+          <span class="val" id="qr-expire">—</span>
+        </div>
+        <div class="qr-info-row">
+          <span class="label">Metode</span>
+          <span class="val">QRIS (semua e-wallet)</span>
+        </div>
+      </div>
+
+      <div class="status-badge pending" id="status-badge">
+        <span class="pulse">●</span> Menunggu Pembayaran...
+      </div>
+
+      <div class="timer-wrap">
+        <div class="timer-bar-bg">
+          <div class="timer-bar" id="timer-bar" style="width:100%"></div>
+        </div>
+        <div class="timer-text" id="timer-text">QR berlaku 15:00</div>
+      </div>
+
+      <span class="back-link" onclick="resetForm()">← Pilih produk lain</span>
+    </div>
+
+    <!-- ── STEP 3: Sukses ── -->
+    <div id="step-success">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Pembayaran Berhasil!</div>
+      <div class="success-sub">Terima kasih! Pesananmu sedang diproses.</div>
+      <div class="success-detail" id="success-detail"></div>
+      <button class="again-btn" onclick="resetForm()">Beli Lagi</button>
+    </div>
+
+  </div><!-- /card -->
+
+  <!-- Trust badges -->
+  <div class="trust">
+    <div class="trust-item">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M8 1L2 3.5v4C2 11 5 13.5 8 15c3-1.5 6-4 6-7.5v-4L8 1z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      Transaksi Aman
+    </div>
+    <div class="trust-item">
+      <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M5.5 8.5l2 2 3-3.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Verified QRIS
+    </div>
+    <div class="trust-item">
+      <svg viewBox="0 0 16 16" fill="none"><path d="M8 2v4l3 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.2"/></svg>
+      Real-time Status
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+  // ── State ─────────────────────────────────────────────────────────────────
+  let selected  = null;  // { id, name, price, emoji }
+  let pollTimer = null;
+  let countTimer= null;
+  let totalSecs = 15 * 60;
+  let currentTx = null;  // { transactionId, totalAmount, originalAmount, ... }
+
+  // ── Select product ────────────────────────────────────────────────────────
+  function selectProduct(id, name, price, emoji, desc) {
+    selected = { id, name, price, emoji, desc };
+    document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('btn-' + id).classList.add('selected');
+    document.getElementById('pay-btn').disabled = false;
+  }
+
+  // ── Format currency ───────────────────────────────────────────────────────
+  function rupiah(n) {
+    return 'Rp ' + Number(n).toLocaleString('id-ID');
+  }
+
+  // ── Create payment ────────────────────────────────────────────────────────
+  async function createPayment() {
+    if (!selected) return;
+    const btn = document.getElementById('pay-btn');
+    btn.innerHTML = '<span class="spinner"></span> Membuat transaksi...';
+    btn.disabled = true;
+
+    const buyer_name  = document.getElementById('buyer-name').value.trim();
+    const buyer_email = document.getElementById('buyer-email').value.trim();
+
+    try {
+      const res = await fetch('/api/create-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: selected.id, buyer_name, buyer_email }),
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Gagal membuat transaksi');
+      }
+
+      currentTx = data;
+      showQRStep(data);
+    } catch (err) {
+      alert('❌ ' + err.message);
+      btn.innerHTML = 'Generate QR Code';
+      btn.disabled = false;
+    }
+  }
+
+  // ── Show QR step ──────────────────────────────────────────────────────────
+  function showQRStep(data) {
+    document.getElementById('step-product').style.display = 'none';
+    document.getElementById('step-qr').style.display = 'block';
+
+    // Product tag
+    document.getElementById('qr-product-tag').textContent =
+      (data.product?.emoji || '📦') + ' ' + (data.product?.name || selected?.name || '');
+
+    // Amount
+    document.getElementById('qr-amount').textContent = rupiah(data.totalAmount);
+
+    // Unique code note
+    const uNote = document.getElementById('qr-amount-note');
+    if (data.uniqueNominal > 0) {
+      uNote.innerHTML =
+        'Nominal asli ' + rupiah(data.originalAmount) +
+        ' + kode unik <strong>+' + data.uniqueNominal + '</strong> = bayar tepat ' +
+        rupiah(data.totalAmount);
+    } else {
+      uNote.textContent = 'Bayar tepat sesuai nominal di atas';
+    }
+
+    // Transaction ID
+    document.getElementById('qr-txid').textContent = data.transactionId;
+
+    // Expired
+    const expireDate = new Date(Date.now() + (data.expiredInMinutes || 15) * 60000);
+    document.getElementById('qr-expire').textContent =
+      expireDate.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+
+    // Generate QR image from qr_string
+    const canvas = document.getElementById('qr-canvas');
+    canvas.innerHTML = '';
+    if (data.qr_string) {
+      new QRCode(canvas, {
+        text: data.qr_string,
+        width: 220, height: 220,
+        colorDark: '#1a1a2e',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    } else {
+      canvas.innerHTML = '<p style="color:#888;font-size:0.8rem;padding:20px;text-align:center">QR string tidak tersedia</p>';
+    }
+
+    // Countdown timer
+    totalSecs = (data.expiredInMinutes || 15) * 60;
+    startCountdown(totalSecs);
+
+    // Polling status
+    startPolling(data.transactionId);
+  }
+
+  // ── Countdown ─────────────────────────────────────────────────────────────
+  function startCountdown(secs) {
+    clearInterval(countTimer);
+    let remaining = secs;
+    function tick() {
+      if (remaining <= 0) {
+        clearInterval(countTimer);
+        document.getElementById('timer-text').textContent = 'QR sudah kedaluwarsa';
+        document.getElementById('timer-bar').style.width = '0%';
+        setStatus('expired');
+        clearInterval(pollTimer);
+        return;
+      }
+      const m = Math.floor(remaining / 60).toString().padStart(2,'0');
+      const s = (remaining % 60).toString().padStart(2,'0');
+      document.getElementById('timer-text').textContent = `QR berlaku ${m}:${s}`;
+      document.getElementById('timer-bar').style.width = (remaining / secs * 100) + '%';
+      remaining--;
+    }
+    tick();
+    countTimer = setInterval(tick, 1000);
+  }
+
+  // ── Polling status ────────────────────────────────────────────────────────
+  function startPolling(transactionId) {
+    clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch('/api/create-payment?transactionId=' + transactionId);
+        const data = await res.json();
+        if (data.status === 'paid' || data.status === 'success') {
+          clearInterval(pollTimer);
+          clearInterval(countTimer);
+          showSuccess(data);
+        } else if (data.status === 'expired' || data.status === 'cancel') {
+          clearInterval(pollTimer);
+          clearInterval(countTimer);
+          setStatus(data.status);
+        }
+      } catch {}
+    }, 4000);
+  }
+
+  function setStatus(s) {
+    const el = document.getElementById('status-badge');
+    if (s === 'paid' || s === 'success') {
+      el.className = 'status-badge paid';
+      el.innerHTML = '✅ Pembayaran Diterima!';
+    } else if (s === 'expired') {
+      el.className = 'status-badge expired';
+      el.innerHTML = '⏰ QR Kedaluwarsa';
+    } else if (s === 'cancel') {
+      el.className = 'status-badge expired';
+      el.innerHTML = '❌ Dibatalkan';
+    } else {
+      el.className = 'status-badge pending';
+      el.innerHTML = '<span class="pulse">●</span> Menunggu Pembayaran...';
+    }
+  }
+
+  // ── Show success ──────────────────────────────────────────────────────────
+  function showSuccess(data) {
+    clearInterval(pollTimer);
+    clearInterval(countTimer);
+
+    document.getElementById('step-qr').style.display = 'none';
+    document.getElementById('step-success').style.display = 'block';
+
+    const tx = currentTx;
+    const detail = document.getElementById('success-detail');
+    detail.innerHTML = `
+      <div class="success-detail-row"><span class="k">Produk</span><span class="v">${tx?.product?.name || selected?.name || '—'}</span></div>
+      <div class="success-detail-row"><span class="k">Total Bayar</span><span class="v">${rupiah(tx?.totalAmount || 0)}</span></div>
+      <div class="success-detail-row"><span class="k">Transaction ID</span><span class="v" style="font-size:0.72rem;color:#6af7c9">${tx?.transactionId || '—'}</span></div>
+      <div class="success-detail-row"><span class="k">Waktu Bayar</span><span class="v">${new Date().toLocaleString('id-ID')}</span></div>
+    `;
+  }
+
+  // ── Reset ─────────────────────────────────────────────────────────────────
+  function resetForm() {
+    clearInterval(pollTimer);
+    clearInterval(countTimer);
+    selected = null;
+    currentTx = null;
+
+    document.getElementById('step-product').style.display = 'block';
+    document.getElementById('step-qr').style.display = 'none';
+    document.getElementById('step-success').style.display = 'none';
+
+    document.querySelectorAll('.product-btn').forEach(b => b.classList.remove('selected'));
+    document.getElementById('pay-btn').disabled = true;
+    document.getElementById('pay-btn').innerHTML = 'Generate QR Code';
+    document.getElementById('qr-canvas').innerHTML = '';
+    document.getElementById('buyer-name').value = '';
+    document.getElementById('buyer-email').value = '';
+    setStatus('pending');
+  }
+
+  // ── Cek URL param (return dari redirect) ──────────────────────────────────
+  const params = new URLSearchParams(location.search);
+  const txParam = params.get('transactionId') || params.get('transaction_id');
+  if (txParam) {
+    fetch('/api/create-payment?transactionId=' + txParam)
+      .then(r => r.json())
+      .then(d => {
+        if (d.status === 'paid' || d.status === 'success') showSuccess(d);
+      }).catch(() => {});
+  }
+</script>
+</body>
+</html>
